@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Details</title>
+    <title><%= filename %></title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
@@ -11,6 +11,7 @@
         <a class="text-blue-500 inline-block mb-10" href="/">Go Back To Home</a>
         <h1 class="text-4xl tracking-tighter"><%= filename %></h1>
         <p class="text-xl mt-5 font-light"><%= filedata %></p>
+        <a class="text-blue-500 inline-block mt-3" href="/edit/<%= filename %>">Edit</a>
     </div>
 </body>
 </html>

@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
+const mysql = require('mysql');
 const app = express();
 const port = 3000;
 
@@ -10,50 +10,101 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// Route to display the list of files
+// Database connection
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '977563',
+    database: 'note_taking_db'
+});
+
+db.connect((err) => {
+    if (err) {
+        throw err;
+    }
+    console.log('Connected to MySQL Database');
+});
+
+// Route: Get All Notes
 app.get("/", (req, res) => {
-    fs.readdir(path.join(__dirname, 'files'), (err, files) => {
+    const query = 'SELECT * FROM notes';
+    db.query(query, (err, results) => {
         if (err) {
-            console.error('Error reading directory:', err);
-            return res.status(500).send('Internal Server Error');
+            throw err;
         }
-        res.render("index", { files: files });
+        res.render('index', { notes: results });
     });
 });
 
-// Route to display file content
-app.get("/file/:filename", (req, res) => {
-    const filePath = path.join(__dirname, 'files', req.params.filename);
-    fs.readFile(filePath, "utf-8", (err, filedata) => {
+// Route to display note content
+app.get("/file/:id", (req, res) => {
+    const query = 'SELECT * FROM notes WHERE id = ?';
+    db.query(query, [req.params.id], (err, results) => {
         if (err) {
-            console.error('Error reading file:', err);
+            console.error('Error fetching note:', err);
             return res.status(500).send('Internal Server Error');
         }
-        res.render('show', { filename: req.params.filename, filedata: filedata });
+        if (results.length > 0) {
+            const note = results[0];
+            res.render('show', { filename: note.title, filedata: note.content });
+        } else {
+            res.status(404).send('Note not found');
+        }
     });
 });
 
-// Route to create a new file
+// Route to create a new note
 app.post("/create", (req, res) => {
-    const filePath = path.join(__dirname, 'files', req.body.title.split(' ').join('_') + '.txt');
-    fs.writeFile(filePath, req.body.details, (err) => {
+    const { title, content } = req.body;
+    const query = 'INSERT INTO notes (title, content) VALUES (?, ?)';
+    
+    db.query(query, [title, content], (err, result) => {
         if (err) {
-            console.error('Error creating file:', err);
-            return res.status(500).send('Internal Server Error');
+            throw err;
         }
-        res.redirect("/");
+        res.redirect('/');
     });
-}); 
+});
 
-// Route to delete a file
-app.get("/delete/file/:filename", (req, res) => {
-    const filePath = path.join(__dirname, 'files', req.params.filename);
-    fs.unlink(filePath, (err) => {
+// Route to render the edit form
+app.get("/edit/:id", (req, res) => {
+    const query = 'SELECT * FROM notes WHERE id = ?';
+    db.query(query, [req.params.id], (err, results) => {
         if (err) {
-            console.error('Error deleting file:', err);
+            console.error('Error fetching note for edit:', err);
             return res.status(500).send('Internal Server Error');
         }
-        console.log('File deleted:', req.params.filename);
+        if (results.length > 0) {
+            const note = results[0];
+            res.render('edit', { note: note });
+        } else {
+            res.status(404).send('Note not found');
+        }
+    });
+});
+
+// Route to update a note
+app.post("/update/:id", (req, res) => {
+    const { title, content } = req.body;
+    const query = 'UPDATE notes SET title = ?, content = ? WHERE id = ?';
+
+    db.query(query, [title, content, req.params.id], (err, result) => {
+        if (err) {
+            throw err;
+        }
+        res.redirect('/');
+    });
+});
+
+// Route to delete a note
+app.get("/delete/:id", (req, res) => {
+    const query = 'DELETE FROM notes WHERE id = ?';
+    db.query(query, [req.params.id], (err, result) => {
+        if (err) {
+            console.error('Error deleting note:', err);
+            return res.status(500).send('Internal Server Error');
+        }
+        console.log('Note deleted:', req.params.id);
         res.redirect('/');
     });
 });
